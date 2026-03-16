@@ -46,13 +46,20 @@ def register_generation_mode_handlers(
     results_section = context.results_section
     llm_handler = context.llm_handler
 
+    # Shared handler for mode-change and initial page load — extracted to
+    # avoid duplicating the lambda and to keep both call sites in sync.
+    def _handle_mode_change(mode, prev):
+        return gen_h.handle_generation_mode_change(mode, prev, llm_handler)
+
+    mode_change_inputs = [
+        generation_section["generation_mode"],
+        generation_section["previous_generation_mode"],
+    ]
+
     # ========== Generation Mode Change ==========
     generation_section["generation_mode"].change(
-        fn=lambda mode, prev: gen_h.handle_generation_mode_change(mode, prev, llm_handler),
-        inputs=[
-            generation_section["generation_mode"],
-            generation_section["previous_generation_mode"],
-        ],
+        fn=_handle_mode_change,
+        inputs=mode_change_inputs,
         outputs=mode_ui_outputs,
     )
 
@@ -66,11 +73,8 @@ def register_generation_mode_handlers(
     # This .load() event fires once on page load to initialize all
     # mode-dependent UI state using the same handler.
     context.demo.load(
-        fn=lambda mode, prev: gen_h.handle_generation_mode_change(mode, prev, llm_handler),
-        inputs=[
-            generation_section["generation_mode"],
-            generation_section["previous_generation_mode"],
-        ],
+        fn=_handle_mode_change,
+        inputs=mode_change_inputs,
         outputs=mode_ui_outputs,
     )
 
